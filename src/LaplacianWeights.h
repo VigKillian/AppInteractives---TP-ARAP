@@ -139,19 +139,20 @@ public:
 
             Eigen::Vector3d u = p1 - p0;
             Eigen::Vector3d v = p2 - p0;
-            double cot0 = u.dot(v) / u.cross(v).norm();
+            double cot0 = std::max(0.0, Vec3::dot(u, v) / std::max(1e-12, Vec3::cross(u, v).norm()));
             edge_weights[v1][v2] += 0.5 * cot0;
             edge_weights[v2][v1] += 0.5 * cot0;
 
             u = p0 - p1;
             v = p2 - p1;
-            double cot1 = u.dot(v) / u.cross(v).norm();
+            double cot1 = std::max(0.0, Vec3::dot(u, v) / std::max(1e-12, Vec3::cross(u, v).norm()));
+
             edge_weights[v0][v2] += 0.5 * cot1;
             edge_weights[v2][v0] += 0.5 * cot1;
 
             u = p0 - p2;
             v = p1 - p2;
-            double cot2 = u.dot(v) / u.cross(v).norm();
+            double cot2 = std::max(0.0, Vec3::dot(u, v) / std::max(1e-12, Vec3::cross(u, v).norm()));
             edge_weights[v0][v1] += 0.5 * cot2;
             edge_weights[v1][v0] += 0.5 * cot2;
         }
@@ -167,102 +168,46 @@ public:
     // These weights are all positive
 
     template< class vertex_t , class triangle_t >
-    void buildBarycentricWeightsOfTriangleMesh(
-    const std::vector< vertex_t > & vertices,
-    const std::vector< triangle_t > & triangles)
-{
-    // Initialise les structures (resize doit initialiser n_vertices, edge_weights, vertex_weights)
-    resize(vertices.size());
-
-    const double eps = 1e-6;
-    const double cotan_eps = 1e-6;
-    const double cotan_max = std::cos(cotan_eps) / std::sin(cotan_eps);
-
-    auto safe_cotan = [&](const Vec3 &a, const Vec3 &b) -> double {
-        // cot(angle between a and b) = (a·b) / |a×b|
-        Vec3 cross = Vec3::cross(a, b);
-        double denom = cross.norm();
-        if (denom <= eps) return 0.0; // angle degenerate => cot ~ 0 (robuste)
-        double val = a.dot(b) / denom;
-        if (std::isnan(val) || std::isinf(val)) return 0.0;
-        // clamp to avoid huge values when angle ~ 0 or ~ pi
-        if (val > cotan_max) val = cotan_max;
-        if (val < -cotan_max) val = -cotan_max;
-        return val;
-    };
-
-    // Pour chaque triangle : calculer les cotangentes aux 3 sommets
-    for (unsigned int t = 0; t < triangles.size(); ++t)
+    void buildBarycentricWeightsOfTriangleMesh( const std::vector< vertex_t > & vertices , const std::vector< triangle_t > & triangles )
     {
-        unsigned int i0 = triangles[t][0];
-        unsigned int i1 = triangles[t][1];
-        unsigned int i2 = triangles[t][2];
+        resize(vertices.size());
 
-        Vec3 p0(vertices[i0][0], vertices[i0][1], vertices[i0][2]);
-        Vec3 p1(vertices[i1][0], vertices[i1][1], vertices[i1][2]);
-        Vec3 p2(vertices[i2][0], vertices[i2][1], vertices[i2][2]);
-        
-
-        // vecteurs autour de chaque sommet
-        // angle at p0 between (p1-p0) and (p2-p0)
-        Vec3 v01 = p1 - p0;
-        Vec3 v02 = p2 - p0;
-        double cot0 = safe_cotan(v01, v02);
-
-        // angle at p1 between (p2-p1) and (p0-p1)
-        Vec3 v12 = p2 - p1;
-        Vec3 v10 = p0 - p1;
-        double cot1 = safe_cotan(v12, v10);
-
-        // angle at p2 between (p0-p2) and (p1-p2)
-        Vec3 v20 = p0 - p2;
-        Vec3 v21 = p1 - p2;
-        double cot2 = safe_cotan(v20, v21);
-
-        // ajouter chaque cotangente à l'arête opposée
-        // cot0 (angle at i0) -> contributes to edge (i1, i2)
-        edge_weights[i1][i2] += cot0;
-        edge_weights[i2][i1] += cot0;
-
-        // cot1 -> edge (i2, i0)
-        edge_weights[i2][i0] += cot1;
-        edge_weights[i0][i2] += cot1;
-
-        // cot2 -> edge (i0, i1)
-        edge_weights[i0][i1] += cot2;
-        edge_weights[i1][i0] += cot2;
-    }
-
-    // Maintenant accumuler la somme des poids incident par sommet (utile pour la diagonale de la Laplacienne)
-    for (unsigned int v = 0; v < n_vertices; ++v)
-    {
-        double sum = 0.0;
-        for (std::map<unsigned int, double>::const_iterator it = edge_weights[v].begin();
-             it != edge_weights[v].end(); ++it)
+        for( unsigned int t = 0 ; t < triangles.size() ; ++t )
         {
-            sum += it->second;
-        }
-        vertex_weights[v] = sum;
-    }
+            unsigned int v0 = triangles[t][0];
+            unsigned int v1 = triangles[t][1];
+            unsigned int v2 = triangles[t][2];
 
-    // --- Optionnel : normaliser les poids autour de chaque sommet pour qu'ils somment à 1
-    // (Décommente si tu veux reproduire exactement le comportement "barycentric" précédent)
-    /*
-    for (unsigned int v = 0; v < n_vertices; ++v)
-    {
-        double vsum = vertex_weights[v];
-        if (vsum <= 0.0) continue;
-        for (std::map<unsigned int,double>::iterator it = edge_weights[v].begin();
-             it != edge_weights[v].end(); ++it)
+            Vec3 p0( vertices[v0][0] , vertices[v0][1] , vertices[v0][2] );
+            Vec3 p1( vertices[v1][0] , vertices[v1][1] , vertices[v1][2] );
+            Vec3 p2( vertices[v2][0] , vertices[v2][1] , vertices[v2][2] );
+
+            double t_area_by_3 = Vec3::cross( p1 - p0 , p2 - p0 ).norm() / 6.0;
+
+            // Barycentric weights:
+            edge_weights[v1][v2] += t_area_by_3;
+            edge_weights[v2][v1] += t_area_by_3;
+
+            edge_weights[v0][v2] += t_area_by_3;
+            edge_weights[v2][v0] += t_area_by_3;
+
+            edge_weights[v1][v0] += t_area_by_3;
+            edge_weights[v0][v1] += t_area_by_3;
+
+            vertex_weights[v0] += t_area_by_3;
+            vertex_weights[v1] += t_area_by_3;
+            vertex_weights[v2] += t_area_by_3;
+        }
+        for( unsigned int v = 0 ; v < n_vertices ; ++v )
         {
-            edge_weights[v][it->first] = it->second / vsum;
+            double v_area = vertex_weights[v];
+            for( std::map< unsigned int , double >::iterator it = edge_weights[v].begin() ; it != edge_weights[v].end() ; ++it )
+            {
+                // todo:: make sure it does not mess up the iterator (it should not, they are supposed to be ordered solely based on it->first, but, not sure)
+                edge_weights[v][it->first] = it->second / v_area;
+            }
         }
-        // après normalisation la 'vertex_weights[v]' vaut 1.0 si tu veux.
-        vertex_weights[v] = 1.0;
     }
-    */
-}
-
 
 };
 

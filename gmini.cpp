@@ -230,7 +230,7 @@ void updateSystem() {
 
         }
     }
-
+    
     arapLinearSystem.preprocess();
     handlesWereChanged = false;
 }
@@ -241,7 +241,7 @@ void updateMeshVertexPositionsFromARAPSolver() {
     // return; // TODO : COMMENT THIS LINE WHEN YOU START THE EXERCISE  (setup of the matrix A for the linear system A.X=B)
     updateSystem();
 
-    unsigned int maxIterationsForArap = 5;
+    unsigned int maxIterationsForArap = 6;
 
 
     // return; // TODO : COMMENT THIS LINE WHEN YOU CONTINUE THE EXERCISE  (setup of the vector B for the linear system A.X=B)
@@ -317,7 +317,7 @@ void updateMeshVertexPositionsFromARAPSolver() {
 
                 // WHAT TO PUT HERE ??????? How to update the entries of the tensor matrix ?
 
-                tensorMatrix += w * (rotatedEdge * initialEdge.transpose());
+                tensorMatrix -= rotatedEdge * initialEdge.transpose();
 
             }
             vertexRotationMatrices[v] = getClosestRotation( tensorMatrix );
