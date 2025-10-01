@@ -16,17 +16,21 @@ struct SphereSelectionTool
 	void initSphere(const Vec3& pCenter, const float &pRadius)
 	{
 		// init sphere with Vec3 center and radius
+		radius = pRadius;
+		center = pCenter;
+		isActive = true;
 	}
 
 	void updateSphere(float pRadius)
 	{
 		// update radius 
+		radius = pRadius;
 	}
 
 	bool contains (const Vec3& p)
 	{
 		// is point p in sphere (center_x, center_y, center_z), radius) ?
-		return false;
+		return (p-center).length() <= radius;
 	}
 
 

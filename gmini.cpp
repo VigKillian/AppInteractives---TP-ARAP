@@ -377,23 +377,55 @@ void rotateActiveHandle( Vec3 const & rotationAxis , double angle ) {
 
 void get3DPosFromMouseInput(int x, int y, float &posX, float &posY, float &posZ)
 {
+    GLint viewport[4];
+    GLdouble modelview[16];
+    GLdouble projection[16];
+    GLfloat winX, winY, winZ;
+    GLdouble objX, objY, objZ;
+
+    glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+    glGetDoublev(GL_PROJECTION_MATRIX, projection);
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    winX = (float)x;
+    winY = (float)(viewport[3] - y);
+    glReadPixels(x, int(winY), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
+
+    gluUnProject(winX, winY, winZ, modelview, projection, viewport, &objX, &objY, &objZ);
+
+    posX = (float)objX;
+    posY = (float)objY;
+    posZ = (float)objZ;
 }
 
 void setTagForVerticesInSphere(bool tagToSet)
 {
     // check if vertices are inside the sphere
+    for(unsigned int i = 0; i<mesh.V.size(); i++){
+        if(sphereSelectionTool.contains(mesh.V[i])){
+            verticesAreMarkedForCurrentHandle[i] = tagToSet;
+        }
+        else{
+            verticesAreMarkedForCurrentHandle[i] = false;
+        }
+    }
 }
 
 void updateSphereRadiusWithScroll(int button)
 {
     if(button == 3) //scroll up
     {
+        selectionRadius += 0.1;
+        if(selectionRadius > 3) selectionRadius = 3;
+
     }
     else if(button == 4) //scroll down
     {
-        
+        selectionRadius -= 0.1;
+        if(selectionRadius < 0) selectionRadius = 0;
     }
-
+    sphereSelectionTool.updateSphere(selectionRadius);
+    setTagForVerticesInSphere(sphereSelectionTool.isActive);
 }
 
 
@@ -686,7 +718,12 @@ void draw () {
     glColor3f(0.4,0.4,0.8);
     mesh.draw();
     drawHandles();
-    rectangleSelectionTool.draw();
+    if(sphereSelectionTool.isActive){
+        drawSphere(sphereSelectionTool.center[0], sphereSelectionTool.center[1], sphereSelectionTool.center[2], selectionRadius, 10, 10);
+    }
+    else{
+        rectangleSelectionTool.draw();
+    } 
 }
 
 void display () {
@@ -812,6 +849,7 @@ void key (unsigned char keyPressed, int x, int y) {
         if( viewerState == ViewerState_EDITINGHANDLE ) {
             viewerState = ViewerState_NORMAL;
             finalizeEditingOfCurrentHandle();
+            sphereSelectionTool.isActive = false;
         }
         break;
 
