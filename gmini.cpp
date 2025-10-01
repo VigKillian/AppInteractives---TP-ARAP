@@ -207,9 +207,10 @@ void updateSystem() {
 
             // WHAT TO PUT HERE ??????? How to update the entries of A ?
 
+            // Poids à ajouter à la place des -1, 1 ici
             for(unsigned int coord = 0; coord < 3; ++coord) {
-                arapLinearSystem.A(rowV + coord, columnV + coord)      +=  w;
-                arapLinearSystem.A(rowV + coord, columnVNeighbor + coord) += -w;
+                arapLinearSystem.A(rowV + coord, columnV + coord) = -1.0;
+                arapLinearSystem.A(rowV + coord, columnVNeighbor + coord) = 1.0;
             }
 
             equationIndex++;
@@ -263,9 +264,9 @@ void updateMeshVertexPositionsFromARAPSolver() {
 
                 // WHAT TO PUT HERE ??????? How to update the entries of b ?
 
-                arapLinearSystem.b(equationIndex) = w * rotatedEdge[0];
-                arapLinearSystem.b(equationIndex+1) = w * rotatedEdge[1];
-                arapLinearSystem.b(equationIndex+2) = w * rotatedEdge[2];
+                arapLinearSystem.b(equationIndex) = rotatedEdge[0];
+                arapLinearSystem.b(equationIndex+1) = rotatedEdge[1];
+                arapLinearSystem.b(equationIndex+2) = rotatedEdge[2];
 
                 equationIndex += 3;
 
